@@ -134,7 +134,15 @@ while IFS= read -r issue_json; do
   labels=$(echo "$issue_json" | jq -r '.labels | join(",")')
 
   if [ "$DRY_RUN" = true ]; then
-    echo "[DRY RUN] Would create issue titled: '$title' with labels: '$labels'"
+    truncated_body="$body"
+    if [ ${#body} -gt 80 ]; then
+      # Truncate to 77 chars and add "..."
+      truncated_body="${body:0:77}..."
+    fi
+    printf "[DRY RUN] Would create issue:\n"
+    printf "  Title:  %s\n" "$title"
+    printf "  Labels: %s\n" "$labels"
+    printf "  Body:   %s\n\n" "$truncated_body"
   else
     echo "Creating issue: '$title'..."
     gh "${gh_args[@]:+${gh_args[@]}}" issue create --title "$title" --body "$body" --label "$labels"
