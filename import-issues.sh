@@ -3,8 +3,8 @@
 # A script to read a JSON file and create GitHub issues and labels.
 
 usage() {
-  cat <<EOF
-Usage: $0 [options]
+  cat <<'EOF'
+Usage: $0 -f <path> [options]
 
 Imports issues and labels from a JSON file into a GitHub repository.
 
@@ -12,9 +12,10 @@ Dependencies:
 - gh (the GitHub CLI): https://cli.github.com/
 - jq (a command-line JSON processor): https://stedolan.github.io/jq/
 
-Options:
+Required:
   -f, --file <path>      Path to the input JSON file.
-                         (Default: "input/project.json")
+
+Options:
   -r, --repo <owner/repo> Target GitHub repository.
                          (Default: the repo for the current directory)
   --execute              Actually create labels and issues. Defaults to dry-run.
@@ -28,7 +29,7 @@ EOF
 set -euo pipefail
 
 # --- Configuration ---
-JSON_FILE="input/project.json"
+JSON_FILE=""
 REPO=""
 DRY_RUN=true
 DEFAULT_LABEL_COLOR="ededed" # A neutral grey
@@ -59,6 +60,19 @@ while [[ $# -gt 0 ]]; do
       ;;
   esac
 done
+
+# --- Validation ---
+if [ -z "$JSON_FILE" ]; then
+    echo "Error: Input JSON file must be specified with -f or --file." >&2
+    echo
+    usage
+    exit 1
+fi
+
+if [ ! -f "$JSON_FILE" ]; then
+    echo "Error: File not found at '$JSON_FILE'" >&2
+    exit 1
+fi
 
 if [ "$DRY_RUN" = false ]; then
   echo "--- EXECUTE MODE ---"
@@ -99,14 +113,14 @@ UNIQUE_LABELS=$(jq -r '.[].labels[]' "$JSON_FILE" | sort -u)
 
 for label in $UNIQUE_LABELS; do
   # Use gh and jq to check if the label already exists in the repo
-  if gh "${gh_args[@]}" label list --json name | jq --arg name "$label" -e 'any(.[] | .name == $name)' &> /dev/null; then
+  if gh "${gh_args[@]:+${gh_args[@]}}" label list --json name | jq --arg name "$label" -e 'any(.[] | .name == $name)' &> /dev/null; then
     echo "Label '$label' already exists. Skipping."
   else
     if [ "$DRY_RUN" = true ]; then
       echo "[DRY RUN] Would create label: '$label'"
     else
       echo "Creating label: '$label'..."
-      gh "${gh_args[@]}" label create "$label" --color "$DEFAULT_LABEL_COLOR" --description "Auto-created by project importer"
+      gh "${gh_args[@]:+${gh_args[@]}}" label create "$label" --color "$DEFAULT_LABEL_COLOR" --description "Auto-created by project importer"
     fi
   fi
 done
@@ -123,7 +137,7 @@ while IFS= read -r issue_json; do
     echo "[DRY RUN] Would create issue titled: '$title' with labels: '$labels'"
   else
     echo "Creating issue: '$title'..."
-    gh "${gh_args[@]}" issue create --title "$title" --body "$body" --label "$labels"
+    gh "${gh_args[@]:+${gh_args[@]}}" issue create --title "$title" --body "$body" --label "$labels"
   fi
 done < <(jq -c '.[]' "$JSON_FILE")
 
