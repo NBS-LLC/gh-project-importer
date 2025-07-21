@@ -102,11 +102,16 @@ check_dependencies() {
     # Export the token for gh to use.
     export GH_TOKEN="$GH_PROJECT_IMPORTER_TOKEN"
 
-    # Verify the token is valid by checking auth status
-    if ! gh auth status &>/dev/null; then
+    # Verify the token is valid by making a simple API call. This is more
+    # reliable than `gh auth status`, which might check a cached login
+    # or require broader permissions (like 'read:org') than necessary.
+    echo "Verifying token..."
+    if ! gh api user &>/dev/null; then
         echo "Error: The provided GH_PROJECT_IMPORTER_TOKEN is invalid or has insufficient permissions." >&2
+        echo "Please ensure it is a valid Personal Access Token with 'repo' scope." >&2
         exit 1
     fi
+    echo "Token is valid."
 }
 
 confirm_execution_mode() {
@@ -176,8 +181,8 @@ create_issues() {
 main() {
     parse_args "$@"
     validate_input
-    confirm_execution_mode
     check_dependencies
+    confirm_execution_mode
     prepare_gh_command
     create_labels
     create_issues
