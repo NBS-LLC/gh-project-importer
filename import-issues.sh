@@ -8,6 +8,9 @@ Usage: $0 -f <path> [options]
 
 Imports issues and labels from a JSON file into a GitHub repository.
 
+This script requires the GH_PROJECT_IMPORTER_TOKEN environment variable to be set
+with a GitHub Personal Access Token (PAT) with 'repo' scope.
+
 Dependencies:
 - gh (the GitHub CLI): https://cli.github.com/
 - jq (a command-line JSON processor): https://stedolan.github.io/jq/
@@ -90,8 +93,18 @@ check_dependencies() {
         exit 1
     fi
 
+    if [ -z "${GH_PROJECT_IMPORTER_TOKEN:-}" ]; then
+        echo "Error: The GH_PROJECT_IMPORTER_TOKEN environment variable is not set." >&2
+        echo "Please set it to a GitHub Personal Access Token with 'repo' scope." >&2
+        exit 1
+    fi
+
+    # Export the token for gh to use.
+    export GH_TOKEN="$GH_PROJECT_IMPORTER_TOKEN"
+
+    # Verify the token is valid by checking auth status
     if ! gh auth status &>/dev/null; then
-        echo "Error: Not logged into GitHub CLI. Please run 'gh auth login' first." >&2
+        echo "Error: The provided GH_PROJECT_IMPORTER_TOKEN is invalid or has insufficient permissions." >&2
         exit 1
     fi
 }
