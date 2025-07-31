@@ -128,8 +128,10 @@ create_labels() {
     echo "STEP 1: Processing labels from $JSON_FILE..."
     UNIQUE_LABELS=$(jq -r '.[].labels[]' "$JSON_FILE" | sort -u)
 
+    EXISTING_LABELS=$(gh "${gh_args[@]:+${gh_args[@]}}" label list --json name -q '.[].name' 2>/dev/null || true)
+
     for label in $UNIQUE_LABELS; do
-        if gh "${gh_args[@]:+${gh_args[@]}}" label list --json name | jq --arg name "$label" -e 'any(.[] | .name == $name)' &>/dev/null; then
+        if echo "$EXISTING_LABELS" | grep -qx "$label"; then
             echo "Label '$label' already exists. Skipping."
         else
             if [ "$DRY_RUN" = true ]; then
