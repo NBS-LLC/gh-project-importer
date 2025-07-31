@@ -26,9 +26,6 @@ Options:
 EOF
 }
 
-# Exit immediately if a command exits with a non-zero status.
-# Treat unset variables as an error.
-# The return value of a pipeline is the status of the last command to exit with a non-zero status.
 set -euo pipefail
 
 # --- Global Variables ---
@@ -39,7 +36,6 @@ DEFAULT_LABEL_COLOR="ededed" # A neutral grey
 gh_args=()
 
 # --- Function Definitions ---
-
 parse_args() {
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -99,12 +95,7 @@ check_dependencies() {
         exit 1
     fi
 
-    # Export the token for gh to use.
     export GH_TOKEN="$GH_PROJECT_IMPORTER_TOKEN"
-
-    # Verify the token is valid by making a simple API call. This is more
-    # reliable than `gh auth status`, which might check a cached login
-    # or require broader permissions (like 'read:org') than necessary.
     echo "Verifying token..."
     if ! gh api user &>/dev/null; then
         echo "Error: The provided GH_PROJECT_IMPORTER_TOKEN is invalid or has insufficient permissions." >&2
@@ -128,7 +119,6 @@ confirm_execution_mode() {
 }
 
 prepare_gh_command() {
-    # Prepare gh command arguments based on script options.
     if [ -n "$REPO" ]; then
         gh_args+=(--repo "$REPO")
     fi
@@ -139,7 +129,6 @@ create_labels() {
     UNIQUE_LABELS=$(jq -r '.[].labels[]' "$JSON_FILE" | sort -u)
 
     for label in $UNIQUE_LABELS; do
-        # Use gh and jq to check if the label already exists in the repo
         if gh "${gh_args[@]:+${gh_args[@]}}" label list --json name | jq --arg name "$label" -e 'any(.[] | .name == $name)' &>/dev/null; then
             echo "Label '$label' already exists. Skipping."
         else
@@ -164,7 +153,6 @@ create_issues() {
         if [ "$DRY_RUN" = true ]; then
             truncated_body="$body"
             if [ ${#body} -gt 80 ]; then
-                # Truncate to 77 chars and add "..."
                 truncated_body="${body:0:77}..."
             fi
             printf "[DRY RUN] Would create issue:\n"
