@@ -16,13 +16,12 @@ Dependencies:
 - jq (a command-line JSON processor): https://stedolan.github.io/jq/
 
 Required:
-  -f, --file <path>      Path to the input JSON file.
+  -f, --file <path>         Path to the input JSON file.
+  -r, --repo <owner/repo>   Target GitHub repository.
 
 Options:
-  -r, --repo <owner/repo> Target GitHub repository.
-                         (Default: the repo for the current directory)
-  --execute              Actually create labels and issues. Defaults to dry-run.
-  -h, --help             Display this help message.
+  --execute     Actually create labels and issues. Defaults to dry-run.
+  -h, --help    Display this help message.
 EOF
 }
 
@@ -74,6 +73,13 @@ validate_input() {
 
     if [ ! -f "$JSON_FILE" ]; then
         echo "Error: File not found at '$JSON_FILE'" >&2
+        exit 1
+    fi
+
+    if [ -z "$REPO" ]; then
+        echo "Error: Repo must be specified with -r or --repo." >&2
+        echo
+        usage
         exit 1
     fi
 }
