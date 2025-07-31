@@ -143,7 +143,9 @@ create_milestones() {
                 echo "[DRY RUN] Would create milestone: '$milestone'"
             else
                 echo "Creating milestone: '$milestone'..."
-                # TODO: create milestone via gh api
+                gh api repos/$REPO/milestones \
+                    --method POST \
+                    --field title="$milestone"
             fi
         fi
     done
