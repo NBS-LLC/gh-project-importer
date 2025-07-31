@@ -3,8 +3,8 @@
 # A script to read a JSON file and create GitHub issues and labels.
 
 usage() {
-    cat <<'EOF'
-Usage: $0 -f <path> [options]
+    cat << EOF
+Usage: $0 -f <path> -r <owner/repo> [options]
 
 Imports issues and labels from a JSON file into a GitHub repository.
 
