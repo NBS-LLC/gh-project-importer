@@ -130,10 +130,29 @@ prepare_gh_command() {
     fi
 }
 
-create_labels() {
-    echo "STEP 1: Processing labels from $JSON_FILE..."
-    UNIQUE_LABELS=$(jq -r '.[].labels[]' "$JSON_FILE" | sort -u)
+create_milestones() {
+    echo "STEP: Processing milestones from $JSON_FILE..."
+    UNIQUE_MILESTONES=$(jq -r '.[] | select(.milestone != null) | .milestone' "$JSON_FILE" | sort -u)
+    EXISTING_MILESTONES=$(gh api repos/$REPO/milestones -q '.[].title' 2>/dev/null || true)
 
+    echo "$UNIQUE_MILESTONES" | while read -r milestone; do
+        if echo "$EXISTING_MILESTONES" | grep -qx "$milestone"; then
+            echo "Milestone '$milestone' already exists. Skipping."
+        else
+            if [ "$DRY_RUN" = true ]; then
+                echo "[DRY RUN] Would create milestone: '$milestone'"
+            else
+                echo "Creating milestone: '$milestone'..."
+                # TODO: create milestone via gh api
+            fi
+        fi
+    done
+    echo
+}
+
+create_labels() {
+    echo "STEP: Processing labels from $JSON_FILE..."
+    UNIQUE_LABELS=$(jq -r '.[].labels[]' "$JSON_FILE" | sort -u)
     EXISTING_LABELS=$(gh "${gh_args[@]:+${gh_args[@]}}" label list --json name -q '.[].name' 2>/dev/null || true)
 
     for label in $UNIQUE_LABELS; do
@@ -152,11 +171,12 @@ create_labels() {
 }
 
 create_issues() {
-    echo "STEP 2: Processing issues from $JSON_FILE..."
+    echo "STEP: Processing issues from $JSON_FILE..."
     while IFS= read -r issue_json; do
         title=$(echo "$issue_json" | jq -r '.title')
         body=$(echo "$issue_json" | jq -r '.description')
         labels=$(echo "$issue_json" | jq -r '.labels | join(",")')
+        milestone=$(echo "$issue_json" | jq -r '.milestone')
 
         if [ "$DRY_RUN" = true ]; then
             truncated_body="$body"
@@ -164,12 +184,14 @@ create_issues() {
                 truncated_body="${body:0:77}..."
             fi
             printf "[DRY RUN] Would create issue:\n"
-            printf "  Title:  %s\n" "$title"
-            printf "  Labels: %s\n" "$labels"
-            printf "  Body:   %s\n\n" "$truncated_body"
+            printf "  Title:     %s\n" "$title"
+            printf "  Labels:    %s\n" "$labels"
+            printf "  Body:      %s\n" "$truncated_body"
+            printf "  Milestone: %s\n" "$milestone"
+            printf "\n"
         else
             echo "Creating issue: '$title'..."
-            gh "${gh_args[@]:+${gh_args[@]}}" issue create --title "$title" --body "$body" --label "$labels"
+            gh "${gh_args[@]:+${gh_args[@]}}" issue create --title "$title" --body "$body" --label "$labels" --milestone "$milestone"
         fi
     done < <(jq -c '.[]' "$JSON_FILE")
 }
@@ -180,6 +202,7 @@ main() {
     check_dependencies
     confirm_execution_mode
     prepare_gh_command
+    create_milestones
     create_labels
     create_issues
     echo -e "\nScript finished."
